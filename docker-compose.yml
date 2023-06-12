@@ -1,0 +1,93 @@
+version: '3.5'
+
+services:
+  appsf-web:
+    container_name: appsf-web
+    build:
+      context: ./docker/nginx
+      args:
+        UID: $U_ID
+    ports:
+      - 300:80
+    volumes:
+      - ./public:/appdata/www/public
+    networks:
+      - appsf-network
+    depends_on:
+      - appsf-be
+
+#  docker-symfony-node:
+#    container_name: docker-symfony-node
+#    image: node:18.16.0
+#    ports:
+#      - 3000:3000
+#    command: npm install, npm, start
+#    networks:
+#      - docker-symfony-network
+#    depends_on:
+#      - docker-symfony-be
+  
+  appsf-be:
+    container_name: appsf-be
+    build:
+      context: ./docker/php
+      args:
+        UID: $U_ID
+    environment:
+      PHP_IDE_CONFIG: serverName=Docker
+#      PHP_XDEBUG_ENABLED: 1
+#      XDEBUG_CONFIG: remote_host=172.17.0.1 remote_port=9005 # Linux users
+      XDEBUG_CLIENT_HOST: 172.17.0.1
+      XDEBUG_CLIENT_PORT: 9003
+#      XDEBUG_CONFIG: remote_host=host.docker.internal remote_port=9005 # MacOS users
+    volumes:
+      - ./:/appdata/www
+      - ./docker/php/xdebug-linux.ini:/usr/local/etc/php/conf.d/xdebug.ini # Linux users
+#    - ./docker/php/xdebug-macos.ini:/usr/local/etc/php/conf.d/xdebug.ini # MacOS users
+#      - ~/.ssh/id_rsa:/home/appuser/.ssh/id_rsa
+    networks:
+      - appsf-network
+    depends_on:
+      - appsf-db
+
+  appsf-pma:
+    container_name: appsf-pma
+#    image: adminer
+#    restart: always
+#    ports:
+#      - 8080:8080
+    image: phpmyadmin/phpmyadmin
+    ports:
+      - 8080:80
+    environment:
+      - PMA_HOST=appsf-db
+      - MYSQL_ROOT_PASSWORD=root
+#      - PMA_ARBITRARY=1
+    depends_on:
+      - appsf-db
+    networks:
+      - appsf-network
+
+  appsf-db:
+    container_name: appsf-db
+    image: mysql:8.0
+    ports:
+      - 40000:3306
+    environment:
+      MYSQL_DATABASE: appsf-bd
+#      MYSQL_USER: user
+#      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: root
+      command: mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - appsf-data:/var/lib/mysql
+    networks:
+      - appsf-network
+
+volumes:
+
+  appsf-data:
+
+networks:
+  appsf-network:
+    external: true
